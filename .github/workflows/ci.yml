@@ -1,0 +1,366 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/k8s-custom-controller
+  HELM_CHART_NAME: k8s-custom-controller
+  HELM_CHART_DIR: helm/k8s-custom-controller
+  KUBESEC_MIN_SCORE: 90
+  PLUTO_VERSION: 5.22.7
+  PLUTO_TARGET_K8S_VERSION: 1.35
+
+jobs:
+  test:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: go.mod
+
+      - name: Run go mod download
+        run: go mod download
+
+      - name: Run format check
+        run: make fmt
+        continue-on-error: false
+
+      - name: Run go vet
+        run: make vet
+
+      - name: Run tests
+        run: make test
+
+      - name: Run tests with coverage
+        run: make test-coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Install golangci-lint
+        if: hashFiles('**/.golangci.yml') == ''
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.54.2
+          args: --timeout=5m
+
+      - name: Run linter
+        run: make lint
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: go.mod
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${GITHUB_SHA::8}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: make build-all
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: bin/
+          retention-days: 7
+
+  docker-build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            # Remove 'v' prefix if present
+            if [[ "$VERSION" == v* ]]; then
+              VERSION=${VERSION#v}
+            fi
+          else
+            VERSION=${GITHUB_SHA::8}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image using Makefile
+        run: |
+          make docker-buildx-push \
+            IMAGE_REPO=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            IMAGE_TAG=${{ steps.get_version.outputs.IMAGE_TAG }}
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+          IMAGE_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ steps.get_version.outputs.IMAGE_TAG }}
+        if: github.event_name != 'pull_request'
+
+  helm-chart:
+    name: Build and Validate Helm Chart
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.12.0'
+
+      - name: Install kubesec
+        run: |
+          curl -sSLo /tmp/kubesec.tar.gz "https://github.com/controlplaneio/kubesec/releases/download/v2.11.0/kubesec_2.11.0_linux_amd64.tar.gz"
+          mkdir -p /tmp/kubesec
+          tar -xzf /tmp/kubesec.tar.gz -C /tmp/kubesec
+          sudo mv /tmp/kubesec/kubesec /usr/local/bin/kubesec
+          chmod +x /usr/local/bin/kubesec
+          rm -rf /tmp/kubesec /tmp/kubesec.tar.gz
+          kubesec version
+
+      - name: Install jq (for better JSON parsing)
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${GITHUB_SHA::8}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAG=$VERSION" >> $GITHUB_OUTPUT
+          echo "CHART_VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Chart version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            CHART_VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            CHART_VERSION="0.1.0-${GITHUB_SHA::8}"
+          fi
+          # Update Chart.yaml version if tag exists
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            sed -i "s/^version:.*/version: ${CHART_VERSION}/" ${{ env.HELM_CHART_DIR }}/Chart.yaml
+          fi
+
+      - name: Lint Helm chart
+        run: make helm-lint
+
+      - name: Render Helm templates
+        run: |
+          make helm-template-dir \
+            IMAGE_REPO=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            IMAGE_TAG=${{ steps.get_version.outputs.IMAGE_TAG }} \
+            NAMESPACE=default
+
+      - name: Run kubesec scan
+        run: |
+          make kubesec-validate \
+            KUBESEC_MIN_SCORE=${{ env.KUBESEC_MIN_SCORE }}
+        continue-on-error: false
+
+      - name: Generate kubesec JSON reports
+        run: make kubesec-scan-json
+        continue-on-error: true
+
+      - name: Upload kubesec reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kubesec-reports
+          path: kubesec-reports/
+          retention-days: 7
+
+      - name: Install Pluto (API version deprecation detector)
+        run: make pluto-install
+
+      - name: Validate Kubernetes API versions with Pluto
+        run: |
+          make pluto-detect-validate \
+            PLUTO_TARGET_K8S_VERSION=${{ env.PLUTO_TARGET_K8S_VERSION }}
+        continue-on-error: false
+
+      - name: Run Pluto detection on Helm charts
+        run: |
+          make pluto-detect-charts \
+            PLUTO_TARGET_K8S_VERSION=${{ env.PLUTO_TARGET_K8S_VERSION }}
+        continue-on-error: true
+
+      - name: Package Helm chart
+        run: make helm-package
+
+      - name: Upload Helm chart package
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart-package
+          path: ${{ env.HELM_CHART_DIR }}/charts/*.tgz
+          retention-days: 7
+
+  push-helm-chart:
+    name: Push Helm Chart to GHCR
+    runs-on: ubuntu-latest
+    needs: [helm-chart, docker-build]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:  
+          version: '3.12.0'
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Helm OCI registry
+        run: |
+          helm registry login ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} \
+            --password ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            # Remove 'v' prefix if present
+            if [[ "$VERSION" == v* ]]; then
+              VERSION=${VERSION#v}
+            fi
+          else
+            VERSION="0.1.0-${GITHUB_SHA::8}"
+          fi
+          echo "CHART_VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using chart version: $VERSION"
+
+      - name: Update Chart.yaml version and appVersion
+        run: |
+          CHART_VERSION=${{ steps.get_version.outputs.CHART_VERSION }}
+          sed -i "s/^version:.*/version: $CHART_VERSION/" ${{ env.HELM_CHART_DIR }}/Chart.yaml
+          # For appVersion, use the image tag (without v prefix for tagged releases)
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            APP_VERSION=${GITHUB_REF#refs/tags/}
+            if [[ "$APP_VERSION" == v* ]]; then
+              APP_VERSION=${APP_VERSION#v}
+            fi
+          else
+            APP_VERSION="${GITHUB_SHA::8}"
+          fi
+          sed -i "s/^appVersion:.*/appVersion: \"$APP_VERSION\"/" ${{ env.HELM_CHART_DIR }}/Chart.yaml
+          echo "Updated Chart.yaml - version: $CHART_VERSION, appVersion: $APP_VERSION"
+          cat ${{ env.HELM_CHART_DIR }}/Chart.yaml
+
+      - name: Package Helm chart
+        run: make helm-package
+
+      - name: Push Helm chart as OCI artifact
+        run: |
+          make helm-push-oci \
+            HELM_REGISTRY=${{ env.REGISTRY }} \
+            HELM_REPO=${{ env.IMAGE_NAME }} \
+            HELM_CHART_VERSION=${{ steps.get_version.outputs.CHART_VERSION }}
+        env:
+          HELM_REGISTRY: ${{ env.REGISTRY }}
+          HELM_REPO: ${{ env.IMAGE_NAME }}
+          HELM_CHART_VERSION: ${{ steps.get_version.outputs.CHART_VERSION }}
+
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [test, build, docker-build, helm-chart, push-helm-chart]
+    if: always()
+    steps:
+      - name: CI Pipeline Summary
+        run: |
+          echo "## CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Test and Lint | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Helm Chart | ${{ needs.helm-chart.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Push Helm Chart | ${{ needs.push-helm-chart.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Helm Chart" >> $GITHUB_STEP_SUMMARY
+          echo "Chart pushed to: \`oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-chart\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Image" >> $GITHUB_STEP_SUMMARY
+          echo "Image pushed to: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Kubesec Score" >> $GITHUB_STEP_SUMMARY
+          echo "Minimum required score: \`${{ env.KUBESEC_MIN_SCORE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pluto API Version Validation" >> $GITHUB_STEP_SUMMARY
+          echo "Target Kubernetes version: \`${{ env.PLUTO_TARGET_K8S_VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Checks for deprecated and removed Kubernetes apiVersions" >> $GITHUB_STEP_SUMMARY
+

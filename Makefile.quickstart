@@ -1,0 +1,51 @@
+# Quick Start Guide for Makefile Commands
+# 
+# This file provides quick reference for common Makefile commands
+# Run: make help  (to see all available commands)
+
+## Basic Build & Test
+make build          # Build binary for current platform
+make test           # Run tests
+make test-coverage  # Run tests with coverage report
+make fmt            # Format code
+make vet            # Run go vet
+make lint           # Run linter (golangci-lint)
+
+## Docker Build
+make docker-build   # Build Docker image
+make docker-push    # Build and push Docker image
+
+## Helm Chart
+make helm-build     # Build and package Helm chart
+make helm-lint      # Lint Helm chart
+make helm-template  # Render Helm templates to stdout
+make helm-template-dir  # Render templates to rendered/ directory
+
+## Security Scanning (Kubesec)
+make kubesec-install     # Install kubesec tool
+make kubesec-scan        # Scan templates (min score: 90)
+make kubesec-validate    # Validate all templates meet score
+make security-scan       # Full scan (render + validate)
+
+## API Version Validation (Pluto)
+make pluto-install       # Install pluto tool for detecting deprecated apiVersions
+make pluto-detect-files  # Detect deprecated apiVersions in rendered templates
+make pluto-detect-charts # Detect deprecated apiVersions in Helm charts
+make pluto-detect-validate # Validate no deprecated apiVersions (fails on deprecations)
+make pluto-detect-all    # Detect deprecated apiVersions in both charts and templates
+
+## Custom Variables
+make build IMAGE_TAG=v1.0.0
+make kubesec-validate KUBESEC_MIN_SCORE=95
+make helm-template NAMESPACE=production
+make pluto-detect-validate PLUTO_TARGET_K8S_VERSION=1.29
+
+## Pre-commit Hooks
+make pre-commit-install  # Install pre-commit hooks (run once)
+make pre-commit-run      # Run pre-commit hooks on all files
+make pre-commit-update   # Update pre-commit hooks
+make pre-push            # Run pre-push checks (lighter than CI)
+
+## Full CI Pipeline
+make ci  # Runs: fmt, vet, lint, test, build, helm-lint, security-scan, pluto-detect-validate, pluto-detect-validate
+

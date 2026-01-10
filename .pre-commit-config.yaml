@@ -1,0 +1,100 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--unsafe'] # Allow custom tags in YAML
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Go-specific hooks
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-vet
+      - id: go-mod-tidy
+      - id: go-unit-tests
+        args: ['-short'] # Run short tests only for pre-commit
+
+  # golangci-lint
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.54.2
+    hooks:
+      - id: golangci-lint
+        args: ['--timeout=5m']
+
+  # Custom Makefile-based checks
+  - repo: local
+    hooks:
+      - id: make-fmt-check
+        name: make fmt check
+        entry: bash -c 'make fmt >/dev/null 2>&1; CHANGED=$$(git diff --name-only); if [ -n "$$CHANGED" ]; then echo "ERROR: Code not formatted. Run '\''make fmt'\'' and commit again."; git diff --exit-code || exit 1; fi'
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: false
+        stages: [commit]
+        verbose: true
+
+      - id: make-vet
+        name: make vet
+        entry: make vet
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: false
+        stages: [commit]
+
+      - id: make-test-unit
+        name: make test-unit
+        entry: make test-unit
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: false
+        stages: [commit]
+        verbose: true
+
+      # Helm chart validation (only on Helm files)
+      - id: helm-lint
+        name: helm lint
+        entry: make helm-lint
+        language: system
+        files: ^helm/.*\.(yaml|yml|tpl)$
+        pass_filenames: false
+        always_run: false
+        stages: [commit]
+        require_serial: true
+
+default_language_version:
+  python: python3
+  golang: go1.21
+
+default_stages: [commit]
+
+fail_fast: false
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
