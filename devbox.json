@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetpack-io/devbox/main/.schema/devbox.schema.json",
+  "packages": [
+    "go@1.21",
+    "kubectl",
+    "jq",
+    "git",
+    "curl",
+    "bash",
+    "python3@3.11"
+  ],
+  "env": {
+    "GO_VERSION": "1.21",
+    "HELM_VERSION": "3",
+    "KUBESEC_VERSION": "2.11.0",
+    "PLUTO_VERSION": "5.22.7",
+    "PLUTO_TARGET_K8S_VERSION": "1.35",
+    "KUBESEC_MIN_SCORE": "90"
+  },
+  "shell": {
+    "init_hook": [
+      "echo '🚀 Devbox Shell for k8s-custom-controller'",
+      "echo ''",
+      "echo 'Available tools:'",
+      "go version --short 2>/dev/null || echo '  ⚠️  Go: not found'",
+      "helm version --short 2>/dev/null || echo '  ⚠️  Helm: not found (install via: brew install helm or see README troubleshooting)'",
+      "kubectl version --client --short 2>/dev/null || echo '  ⚠️  kubectl: not found'",
+      "jq --version 2>/dev/null || echo '  ⚠️  jq: not found'",
+      "echo ''",
+      "echo 'Note: Some tools (kubesec, pluto) need to be installed separately:'",
+      "echo '  Run: devbox run make install-tools'",
+      "echo ''",
+      "echo 'Run: make help to see available commands'",
+      "echo 'Run: devbox run make build to build the project'",
+      "echo ''"
+    ],
+    "scripts": {
+      "setup": [
+        "echo 'Setting up development environment...'",
+        "go mod download",
+        "echo '✅ Development environment ready!'"
+      ],
+      "build": [
+        "make build"
+      ],
+      "test": [
+        "make test"
+      ],
+      "test-unit": [
+        "make test-unit"
+      ],
+      "ci": [
+        "make ci"
+      ],
+      "install-tools": [
+        "echo 'Installing additional tools (kubesec, pluto, golangci-lint)...'",
+        "make kubesec-install || echo '⚠️  kubesec installation skipped'",
+        "make pluto-install || echo '⚠️  pluto installation skipped'",
+        "echo '✅ Tools installation completed!'"
+      ],
+      "pre-commit-install": [
+        "make pre-commit-install || echo '⚠️  Pre-commit installation skipped'"
+      ]
+    }
+  }
+}

@@ -12,6 +12,21 @@ A custom Kubernetes controller written in Go that watches and counts instances o
 
 ## Prerequisites
 
+### Option 1: Devbox (Recommended - Reproducible Environment)
+
+Use Devbox for a fully reproducible development environment with all tools pre-installed:
+
+```bash
+# Install devbox (one-time setup)
+# macOS: brew install jetpack-io/devbox/devbox
+# Linux: curl -fsSL https://get.jetpack.io/devbox | bash
+
+# Start devbox shell (all tools will be available)
+make devbox-shell
+```
+
+### Option 2: Manual Installation
+
 - Go 1.21 or higher
 - Access to a Kubernetes cluster (local or remote)
 - Valid kubeconfig file (if running outside cluster) or proper RBAC (if running in-cluster)
@@ -362,6 +377,78 @@ make pluto-detect-validate PLUTO_TARGET_K8S_VERSION=1.30
 # Run full CI pipeline (format, vet, lint, test, build, helm-lint, security-scan)
 make ci
 ```
+
+#### Devbox Shell (Reproducible Development Environment)
+```bash
+# Check if devbox is installed (shows installation instructions if not)
+make devbox-install
+
+# Start devbox shell (all tools pre-installed)
+make devbox-shell
+
+# Inside devbox shell, most tools are available:
+# - Go 1.21, kubectl, jq, git, curl, bash, python3
+# - Helm (may need manual installation if package not available)
+# - Run any make commands as usual (build, test, ci, etc.)
+
+# Run a command in devbox without entering shell
+make devbox-run CMD="make build"
+make devbox-run CMD="make test"
+make devbox-run CMD="make ci"
+
+# Initialize devbox (if devbox.json is missing - should already exist)
+make devbox-init
+
+# Update devbox packages to latest versions
+make devbox-update
+
+# Show devbox version and installed packages
+make devbox-info
+```
+
+**Devbox benefits:**
+- ✅ All development tools pre-installed (Go, Helm, kubectl, jq, etc.)
+- ✅ Reproducible environment across different machines (macOS, Linux, CI)
+- ✅ No need to manually install dependencies
+- ✅ Works the same on macOS, Linux, and CI environments
+- ✅ Isolated from system packages (no conflicts)
+
+**To exit devbox shell:**
+```bash
+exit
+# or press Ctrl+D
+```
+
+**Troubleshooting:**
+
+If you encounter package errors (e.g., `helm@3.12.0: package not found`), try:
+
+1. **Update devbox packages:**
+   ```bash
+   make devbox-update
+   ```
+
+2. **If Helm is not available in devbox:**
+   - Install Helm manually inside the devbox shell:
+     ```bash
+     # macOS (inside devbox shell)
+     brew install helm
+     
+     # Linux (inside devbox shell)
+     curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+     ```
+
+3. **Install additional tools:**
+   Tools like `kubesec` and `pluto` need to be installed separately as they are not available in nixpkgs:
+   ```bash
+   # Inside devbox shell or via devbox script
+   devbox run make install-tools
+   # or manually
+   make kubesec-install
+   make pluto-install
+   ```
+
+**Note:** Some packages may not be available in devbox/nixpkgs. If a package is not found, install it manually using your system package manager (brew on macOS, apt/yum on Linux) inside the devbox shell.
 
 #### Pre-commit Hooks
 ```bash

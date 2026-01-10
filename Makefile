@@ -610,6 +610,10 @@ install: build ## Install binary to GOPATH/bin
 	@$(GO) install -ldflags "$(LDFLAGS)" ./main.go
 	@echo "Installed: $$(go env GOPATH)/bin/$(BINARY_NAME)"
 
+# Devbox variables
+DEVBOX ?= devbox
+DEVBOX_INSTALLED := $(shell command -v $(DEVBOX) 2>/dev/null)
+
 # Pre-commit hooks targets
 PRE_COMMIT ?= pre-commit
 
@@ -680,6 +684,146 @@ pre-commit-update: ## Update pre-commit hooks to latest versions
 
 .PHONY: pre-commit
 pre-commit: pre-commit-install pre-commit-run ## Install and run pre-commit hooks
+
+# Devbox targets
+.PHONY: devbox-install
+devbox-install: ## Show devbox installation instructions
+	@echo "Checking for devbox..."
+	@if command -v $(DEVBOX) > /dev/null 2>&1; then \
+		echo "✅ devbox already installed at: $$(command -v $(DEVBOX))"; \
+		$(DEVBOX) --help 2>/dev/null | head -3 || echo "   (devbox is available)"; \
+	elif [ -f "$(HOME)/.local/bin/devbox" ]; then \
+		echo "✅ devbox found at ~/.local/bin/devbox"; \
+	elif [ -f "$(HOME)/.devbox/bin/devbox" ]; then \
+		echo "✅ devbox found at ~/.devbox/bin/devbox"; \
+	else \
+		echo "⚠️  devbox not found"; \
+		echo ""; \
+		echo "Install devbox:"; \
+		echo "  macOS:"; \
+		echo "    brew tap jetpack-io/devbox"; \
+		echo "    brew install devbox"; \
+		echo ""; \
+		echo "  Linux:"; \
+		echo "    curl -fsSL https://get.jetpack.io/devbox | bash"; \
+		echo ""; \
+		echo "  Or visit: https://www.jetpack.io/devbox/docs/installing_devbox/"; \
+		echo ""; \
+		echo "After installation, verify with: devbox --help"; \
+		exit 1; \
+	fi
+
+.PHONY: devbox-shell
+devbox-shell: ## Start devbox shell with all development tools
+	@echo "Starting devbox shell..."
+	@if command -v $(DEVBOX) > /dev/null 2>&1; then \
+		echo "Entering devbox shell..."; \
+		echo "Type 'exit' or press Ctrl+D to leave the shell"; \
+		$(DEVBOX) shell; \
+	elif [ -f "$(HOME)/.local/bin/devbox" ]; then \
+		echo "Using devbox from ~/.local/bin"; \
+		$(HOME)/.local/bin/devbox shell; \
+	elif [ -f "$(HOME)/.devbox/bin/devbox" ]; then \
+		echo "Using devbox from ~/.devbox/bin"; \
+		$(HOME)/.devbox/bin/devbox shell; \
+	else \
+		echo "ERROR: devbox not found."; \
+		echo ""; \
+		echo "Install devbox:"; \
+		echo "  macOS:    brew install jetpack-io/devbox/devbox"; \
+		echo "  Linux:    curl -fsSL https://get.jetpack.io/devbox | bash"; \
+		echo "  Or visit: https://www.jetpack.io/devbox/docs/installing_devbox/"; \
+		echo ""; \
+		echo "After installation, verify with: devbox --version"; \
+		exit 1; \
+	fi
+
+.PHONY: devbox-init
+devbox-init: ## Initialize devbox (creates devbox.json if missing)
+	@echo "Initializing devbox..."
+	@if command -v $(DEVBOX) > /dev/null 2>&1 || [ -f "$(HOME)/.local/bin/devbox" ] || [ -f "$(HOME)/.devbox/bin/devbox" ]; then \
+		DEVBOX_CMD=$$(command -v $(DEVBOX) 2>/dev/null || echo "$(HOME)/.local/bin/devbox" || echo "$(HOME)/.devbox/bin/devbox"); \
+		if [ ! -f "devbox.json" ]; then \
+			$$DEVBOX_CMD init || echo "devbox.json already exists or initialization failed"; \
+		else \
+			echo "devbox.json already exists"; \
+		fi; \
+	else \
+		echo "ERROR: devbox not found. Install devbox first:"; \
+		echo "  macOS: brew install jetpack-io/devbox/devbox"; \
+		echo "  Linux: curl -fsSL https://get.jetpack.io/devbox | bash"; \
+		exit 1; \
+	fi
+
+.PHONY: devbox-run
+devbox-run: ## Run a command in devbox environment (usage: make devbox-run CMD="make build")
+	@if [ -z "$(CMD)" ]; then \
+		echo "ERROR: CMD not specified"; \
+		echo "Usage: make devbox-run CMD=\"make build\""; \
+		echo "Example: make devbox-run CMD=\"make test\""; \
+		exit 1; \
+	fi
+	@echo "Running command in devbox: $(CMD)"
+	@if command -v $(DEVBOX) > /dev/null 2>&1; then \
+		$(DEVBOX) run $(CMD); \
+	elif [ -f "$(HOME)/.local/bin/devbox" ]; then \
+		$(HOME)/.local/bin/devbox run $(CMD); \
+	elif [ -f "$(HOME)/.devbox/bin/devbox" ]; then \
+		$(HOME)/.devbox/bin/devbox run $(CMD); \
+	else \
+		echo "ERROR: devbox not found. Run 'make devbox-install' for installation instructions"; \
+		exit 1; \
+	fi
+
+.PHONY: devbox-update
+devbox-update: ## Update devbox packages to latest versions
+	@echo "Updating devbox packages..."
+	@if command -v $(DEVBOX) > /dev/null 2>&1; then \
+		$(DEVBOX) add --latest go helm kubectl jq git curl bash python3; \
+		echo "✅ Devbox packages updated"; \
+	elif [ -f "$(HOME)/.local/bin/devbox" ]; then \
+		$(HOME)/.local/bin/devbox add --latest go helm kubectl jq git curl bash python3; \
+		echo "✅ Devbox packages updated"; \
+	elif [ -f "$(HOME)/.devbox/bin/devbox" ]; then \
+		$(HOME)/.devbox/bin/devbox add --latest go helm kubectl jq git curl bash python3; \
+		echo "✅ Devbox packages updated"; \
+	else \
+		echo "ERROR: devbox not found. Run 'make devbox-install' for installation instructions"; \
+		exit 1; \
+	fi
+
+.PHONY: devbox-info
+devbox-info: ## Show devbox info and installed packages
+	@if command -v $(DEVBOX) > /dev/null 2>&1; then \
+		echo "Devbox location: $$(command -v $(DEVBOX))"; \
+		echo ""; \
+		echo "Configured packages (from devbox.json):"; \
+		if [ -f "devbox.json" ]; then \
+			jq -r '.packages[]' devbox.json 2>/dev/null | sed 's/^/  - /' || \
+			grep -o '"[^"]*@[^"]*"' devbox.json 2>/dev/null | sed 's/"//g' | sed 's/^/  - /' || \
+			echo "  (Unable to parse devbox.json - install jq for better parsing)"; \
+		else \
+			echo "  devbox.json not found"; \
+		fi; \
+		echo ""; \
+		echo "Run 'make devbox-shell' to enter the devbox environment"; \
+	elif [ -f "$(HOME)/.local/bin/devbox" ]; then \
+		echo "Devbox location: ~/.local/bin/devbox"; \
+		if [ -f "devbox.json" ]; then \
+			jq -r '.packages[]' devbox.json 2>/dev/null | sed 's/^/  - /' || \
+			grep -o '"[^"]*@[^"]*"' devbox.json 2>/dev/null | sed 's/"//g' | sed 's/^/  - /' || \
+			echo "  (Unable to parse devbox.json)"; \
+		fi; \
+	elif [ -f "$(HOME)/.devbox/bin/devbox" ]; then \
+		echo "Devbox location: ~/.devbox/bin/devbox"; \
+		if [ -f "devbox.json" ]; then \
+			jq -r '.packages[]' devbox.json 2>/dev/null | sed 's/^/  - /' || \
+			grep -o '"[^"]*@[^"]*"' devbox.json 2>/dev/null | sed 's/"//g' | sed 's/^/  - /' || \
+			echo "  (Unable to parse devbox.json)"; \
+		fi; \
+	else \
+		echo "⚠️  devbox not installed. Run 'make devbox-install' for installation instructions"; \
+	fi
 
 # Default target
 .DEFAULT_GOAL := help

@@ -42,3 +42,8 @@ Thumbs.db
 coverage.out
 coverage.html
 
+# Devbox
+.devbox/
+devbox.lock
+*.lock
+
