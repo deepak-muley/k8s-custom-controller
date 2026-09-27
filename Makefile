@@ -14,6 +14,7 @@ NAMESPACE ?= default
 GO ?= go
 GOFMT ?= gofmt
 GOLANGCI_LINT ?= golangci-lint
+GINKGO ?= ginkgo
 GO_VERSION := $(shell $(GO) version | awk '{print $$3}')
 
 # Build variables
@@ -38,6 +39,11 @@ KUBESEC_VERSION ?= 2.11.0
 PLUTO ?= pluto
 PLUTO_VERSION ?= 5.22.7
 PLUTO_TARGET_K8S_VERSION ?= 1.29
+
+# KUTTL variables
+KUTTL ?= kubectl-kuttl
+KUTTL_VERSION ?= latest
+KUTTL_TEST_DIR ?= tests
 
 .PHONY: all
 all: clean fmt vet test build
@@ -74,9 +80,38 @@ build-darwin: ## Build the binary for macOS
 build-all: build-linux build-darwin ## Build binaries for all platforms
 
 # Test targets
+.PHONY: ginkgo-install
+ginkgo-install: ## Install ginkgo CLI tool
+	@echo "Installing ginkgo CLI..."
+	@$(GO) install github.com/onsi/ginkgo/v2/ginkgo@latest
+	@echo "Ginkgo installed"
+
 .PHONY: test
-test: ## Run tests
+test: ## Run tests with ginkgo (fallback to go test if ginkgo not available)
 	@echo "Running tests..."
+	@if command -v $(GINKGO) > /dev/null 2>&1 || command -v $$(go env GOPATH)/bin/ginkgo > /dev/null 2>&1; then \
+		if command -v $(GINKGO) > /dev/null 2>&1; then \
+			$(GINKGO) -v --race --cover --coverprofile=coverage.out ./...; \
+		else \
+			$$(go env GOPATH)/bin/ginkgo -v --race --cover --coverprofile=coverage.out ./...; \
+		fi \
+	else \
+		echo "Ginkgo not found, falling back to go test..."; \
+		$(GO) test -v -race -coverprofile=coverage.out ./...; \
+	fi
+
+.PHONY: test-ginkgo
+test-ginkgo: ginkgo-install ## Run tests with ginkgo (requires ginkgo CLI)
+	@echo "Running tests with ginkgo..."
+	@if command -v $(GINKGO) > /dev/null 2>&1; then \
+		$(GINKGO) -v --race --cover --coverprofile=coverage.out ./...; \
+	else \
+		$$(go env GOPATH)/bin/ginkgo -v --race --cover --coverprofile=coverage.out ./...; \
+	fi
+
+.PHONY: test-go
+test-go: ## Run tests with go test (standard go testing)
+	@echo "Running tests with go test..."
 	@$(GO) test -v -race -coverprofile=coverage.out ./...
 
 .PHONY: test-coverage
@@ -86,9 +121,164 @@ test-coverage: test ## Run tests with coverage report
 	@echo "Coverage report generated: coverage.html"
 
 .PHONY: test-unit
-test-unit: ## Run unit tests only
+test-unit: ## Run unit tests only (with ginkgo if available, else go test)
 	@echo "Running unit tests..."
-	@$(GO) test -v -short ./...
+	@if command -v $(GINKGO) > /dev/null 2>&1 || command -v $$(go env GOPATH)/bin/ginkgo > /dev/null 2>&1; then \
+		if command -v $(GINKGO) > /dev/null 2>&1; then \
+			$(GINKGO) -v -short ./...; \
+		else \
+			$$(go env GOPATH)/bin/ginkgo -v -short ./...; \
+		fi \
+	else \
+		$(GO) test -v -short ./...; \
+	fi
+
+.PHONY: test-integration
+test-integration: ## Run integration tests with envtest (requires envtest setup)
+	@echo "Running integration tests with envtest..."
+	@if command -v $(GINKGO) > /dev/null 2>&1 || command -v $$(go env GOPATH)/bin/ginkgo > /dev/null 2>&1; then \
+		if command -v $(GINKGO) > /dev/null 2>&1; then \
+			$(GINKGO) -v ./internal/controller/...; \
+		else \
+			$$(go env GOPATH)/bin/ginkgo -v ./internal/controller/...; \
+		fi \
+	else \
+		$(GO) test -v ./internal/controller/...; \
+	fi
+
+# KUTTL targets
+.PHONY: kuttl-install
+kuttl-install: ## Install KUTTL (Kubernetes Test TooL)
+	@echo "Installing KUTTL..."
+	@if command -v $(KUTTL) > /dev/null 2>&1; then \
+		echo "KUTTL already installed: $$($(KUTTL) version)"; \
+		exit 0; \
+	fi
+	@echo "Downloading KUTTL..."
+	@os=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+	arch=$$(uname -m); \
+	if [ "$$arch" = "x86_64" ]; then arch="amd64"; fi; \
+	if [ "$$arch" = "aarch64" ]; then arch="arm64"; fi; \
+	version="v0.24.0"; \
+	url="https://github.com/kudobuilder/kuttl/releases/download/$$version/kubectl-kuttl_$${os}_$${arch}"; \
+	echo "Downloading from: $$url"; \
+	curl -L -o kubectl-kuttl "$$url" || { \
+		echo "Failed to download KUTTL. Please install manually:"; \
+		echo "  curl -L https://github.com/kudobuilder/kuttl/releases/latest/download/kubectl-kuttl_\$$(uname -s)_\$$(uname -m) -o kubectl-kuttl"; \
+		echo "  chmod +x kubectl-kuttl && sudo mv kubectl-kuttl /usr/local/bin/kubectl-kuttl"; \
+		exit 1; \
+	}; \
+	chmod +x kubectl-kuttl; \
+	if [ -w /usr/local/bin ]; then \
+		sudo mv kubectl-kuttl /usr/local/bin/kubectl-kuttl; \
+	else \
+		mv kubectl-kuttl $$(go env GOPATH)/bin/kubectl-kuttl; \
+		echo "Installed to: $$(go env GOPATH)/bin/kubectl-kuttl"; \
+	fi; \
+	echo "✅ KUTTL installed successfully"; \
+	if command -v kubectl-kuttl > /dev/null 2>&1 || command -v $$(go env GOPATH)/bin/kubectl-kuttl > /dev/null 2>&1; then \
+		kuttl_cmd=$$(command -v kubectl-kuttl 2>/dev/null || echo "$$(go env GOPATH)/bin/kubectl-kuttl"); \
+		$$kuttl_cmd version || echo "KUTTL installed but version check failed"; \
+	fi
+
+.PHONY: kuttl-test
+kuttl-test: kuttl-install ## Run KUTTL E2E tests (requires cluster or kind)
+	@echo "Running KUTTL tests..."
+	@if [ ! -d "$(KUTTL_TEST_DIR)" ]; then \
+		echo "ERROR: Test directory $(KUTTL_TEST_DIR) not found"; \
+		exit 1; \
+	fi
+	@if command -v kubectl-kuttl > /dev/null 2>&1; then \
+		kubectl-kuttl test $(KUTTL_TEST_DIR)/ --config $(KUTTL_TEST_DIR)/kuttl-test.yaml || \
+		kubectl-kuttl test $(KUTTL_TEST_DIR)/; \
+	elif command -v $$(go env GOPATH)/bin/kubectl-kuttl > /dev/null 2>&1; then \
+		$$(go env GOPATH)/bin/kubectl-kuttl test $(KUTTL_TEST_DIR)/ --config $(KUTTL_TEST_DIR)/kuttl-test.yaml || \
+		$$(go env GOPATH)/bin/kubectl-kuttl test $(KUTTL_TEST_DIR)/; \
+	else \
+		echo "ERROR: KUTTL not found. Run 'make kuttl-install' first"; \
+		exit 1; \
+	fi
+
+.PHONY: kuttl-test-kind
+kuttl-test-kind: kuttl-install ## Run KUTTL tests with kind cluster (creates and destroys cluster)
+	@echo "Running KUTTL tests with kind cluster..."
+	@if ! command -v kind > /dev/null 2>&1; then \
+		echo "ERROR: kind not found. Install kind:"; \
+		echo "  macOS: brew install kind"; \
+		echo "  Linux: curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind"; \
+		exit 1; \
+	fi
+	@echo "Creating kind cluster for KUTTL tests..."
+	@kind create cluster --name kuttl-test --wait 300s || { \
+		echo "ERROR: Failed to create kind cluster"; \
+		exit 1; \
+	}
+	@echo "Building Docker image and loading into kind..."
+	@make docker-build IMAGE_REPO=k8s-custom-controller IMAGE_TAG=test
+	@kind load docker-image k8s-custom-controller:test --name kuttl-test || echo "Warning: Failed to load image into kind"
+	@echo "Packaging Helm chart for KUTTL tests..."
+	@$(MAKE) helm-package || echo "Warning: Failed to package Helm chart"
+	@echo "Running KUTTL tests (will install Helm chart via script)..."
+	@$(MAKE) kuttl-test || { \
+		echo "Tests failed, cleaning up..."; \
+		kind delete cluster --name kuttl-test; \
+		exit 1; \
+	}
+	@echo "Cleaning up kind cluster..."
+	@kind delete cluster --name kuttl-test
+	@echo "✅ KUTTL tests completed"
+
+.PHONY: kuttl-test-helm
+kuttl-test-helm: kuttl-install ## Run KUTTL tests for Helm chart (requires cluster, installs full Helm chart)
+	@echo "Running KUTTL tests for Helm chart (full Helm install)..."
+	@if ! command -v helm > /dev/null 2>&1; then \
+		echo "ERROR: helm not found. Install helm:"; \
+		echo "  macOS: brew install helm"; \
+		echo "  Linux: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(KUTTL_TEST_DIR)/helm-deployment" ]; then \
+		echo "ERROR: Helm deployment test directory not found"; \
+		exit 1; \
+	fi
+	@echo "Packaging Helm chart..."
+	@$(MAKE) helm-package || { \
+		echo "ERROR: Failed to package Helm chart"; \
+		exit 1; \
+	}
+	@echo "Ensuring install script is executable..."
+	@chmod +x $(KUTTL_TEST_DIR)/helm-deployment/00-install-helm.sh 2>/dev/null || true
+	@echo "Running KUTTL tests for Helm deployment..."
+	@echo "Note: The 00-install-helm.sh script will install the complete Helm chart"
+	@if command -v kubectl-kuttl > /dev/null 2>&1; then \
+		kubectl-kuttl test $(KUTTL_TEST_DIR)/helm-deployment/ --start-kind=false || \
+		kubectl-kuttl test $(KUTTL_TEST_DIR)/helm-deployment/; \
+	elif command -v $$(go env GOPATH)/bin/kubectl-kuttl > /dev/null 2>&1; then \
+		$$(go env GOPATH)/bin/kubectl-kuttl test $(KUTTL_TEST_DIR)/helm-deployment/ --start-kind=false || \
+		$$(go env GOPATH)/bin/kubectl-kuttl test $(KUTTL_TEST_DIR)/helm-deployment/; \
+	else \
+		echo "ERROR: KUTTL not found. Run 'make kuttl-install' first"; \
+		exit 1; \
+	fi
+
+.PHONY: kuttl-clean
+kuttl-clean: ## Clean KUTTL test artifacts and namespaces
+	@echo "Cleaning KUTTL test artifacts..."
+	@kubectl delete namespace kuttl-test-* --ignore-not-found=true || true
+	@kubectl delete namespace kuttl-test-controller --ignore-not-found=true || true
+	@kubectl delete namespace kuttl-test-helm --ignore-not-found=true || true
+	@kubectl delete namespace kuttl-test-watched --ignore-not-found=true || true
+	@kubectl delete namespace kuttl-test-ignored --ignore-not-found=true || true
+	@echo "✅ KUTTL test cleanup completed"
+
+.PHONY: test-watch
+test-watch: ginkgo-install ## Run tests in watch mode (requires ginkgo)
+	@echo "Running tests in watch mode..."
+	@if command -v $(GINKGO) > /dev/null 2>&1; then \
+		$(GINKGO) watch ./...; \
+	else \
+		$$(go env GOPATH)/bin/ginkgo watch ./...; \
+	fi
 
 # Code quality targets
 .PHONY: fmt
@@ -824,6 +1014,114 @@ devbox-info: ## Show devbox info and installed packages
 	else \
 		echo "⚠️  devbox not installed. Run 'make devbox-install' for installation instructions"; \
 	fi
+
+# Examples targets
+CONTROLLER_GEN ?= controller-gen
+EXAMPLES_DIR := examples
+
+.PHONY: examples-build
+examples-build: ## Build all example controllers
+	@echo "Building all examples..."
+	@mkdir -p $(BUILD_DIR)
+	@for dir in $(EXAMPLES_DIR)/*/; do \
+		if [ -f "$$dir/main.go" ]; then \
+			example=$$(basename $$dir); \
+			echo "Building $$example..."; \
+			cd $$dir && $(GO) build -o ../../$(BUILD_DIR)/$$example main.go && cd ../..; \
+		fi \
+	done
+	@echo "All examples built"
+
+.PHONY: examples-test
+examples-test: ## Run tests for all examples
+	@echo "Running tests for all examples..."
+	@$(GO) test ./$(EXAMPLES_DIR)/... -v -race -coverprofile=coverage-examples.txt
+	@echo "All example tests completed"
+
+.PHONY: examples-install-crds
+examples-install-crds: ## Install CRDs for all examples
+	@echo "Installing CRDs for all examples..."
+	@for dir in $(EXAMPLES_DIR)/*/config/crd/; do \
+		if [ -d "$$dir" ]; then \
+			echo "Installing CRDs from $$dir..."; \
+			kubectl apply -f $$dir; \
+		fi \
+	done
+	@echo "All CRDs installed"
+
+.PHONY: examples-uninstall-crds
+examples-uninstall-crds: ## Uninstall CRDs for all examples
+	@echo "Uninstalling CRDs for all examples..."
+	@for dir in $(EXAMPLES_DIR)/*/config/crd/; do \
+		if [ -d "$$dir" ]; then \
+			echo "Uninstalling CRDs from $$dir..."; \
+			kubectl delete -f $$dir --ignore-not-found=true; \
+		fi \
+	done
+	@echo "All CRDs uninstalled"
+
+.PHONY: examples-generate
+examples-generate: ## Generate CRDs and DeepCopy for examples (requires controller-gen)
+	@echo "Generating code for all examples..."
+	@if ! command -v $(CONTROLLER_GEN) > /dev/null 2>&1 && ! [ -f "$$(go env GOPATH)/bin/controller-gen" ]; then \
+		echo "controller-gen not found, installing..."; \
+		$(GO) install sigs.k8s.io/controller-tools/cmd/controller-gen@latest; \
+	fi
+	@CONTROLLER_GEN_CMD=$$(command -v $(CONTROLLER_GEN) 2>/dev/null || echo "$$(go env GOPATH)/bin/controller-gen"); \
+	for dir in $(EXAMPLES_DIR)/*/; do \
+		if [ -d "$$dir/api" ]; then \
+			example=$$(basename $$dir); \
+			echo "Generating code for $$example..."; \
+			cd $$dir && \
+			$$CONTROLLER_GEN_CMD object:headerFile="../../hack/boilerplate.go.txt" paths="./api/..." && \
+			$$CONTROLLER_GEN_CMD crd paths="./api/..." output:crd:artifacts:config=./config/crd && \
+			cd ../..; \
+		fi \
+	done
+	@echo "Code generation completed"
+
+.PHONY: example-run
+example-run: ## Run example (usage: make example-run EXAMPLE=01-basic-reconciler)
+	@if [ -z "$(EXAMPLE)" ]; then \
+		echo "ERROR: EXAMPLE not specified"; \
+		echo "Usage: make example-run EXAMPLE=01-basic-reconciler"; \
+		echo "Available examples:"; \
+		ls -d $(EXAMPLES_DIR)/*/ | xargs -n 1 basename | sed 's/^/  - /'; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(EXAMPLES_DIR)/$(EXAMPLE)" ]; then \
+		echo "ERROR: Example $(EXAMPLE) not found"; \
+		exit 1; \
+	fi
+	@echo "Running example: $(EXAMPLE)"
+	@cd $(EXAMPLES_DIR)/$(EXAMPLE) && $(GO) run main.go
+
+.PHONY: examples-list
+examples-list: ## List all available examples
+	@echo "Available examples:"
+	@for dir in $(EXAMPLES_DIR)/*/; do \
+		if [ -f "$$dir/main.go" ]; then \
+			example=$$(basename $$dir); \
+			if [ -f "$$dir/README.md" ]; then \
+				title=$$(grep -m 1 "^# " $$dir/README.md | sed 's/^# //'); \
+				printf "  %-30s %s\n" "$$example" "$$title"; \
+			else \
+				echo "  $$example"; \
+			fi \
+		fi \
+	done
+
+.PHONY: examples-clean
+examples-clean: ## Clean build artifacts for examples
+	@echo "Cleaning example binaries..."
+	@for dir in $(EXAMPLES_DIR)/*/; do \
+		if [ -f "$$dir/main.go" ]; then \
+			example=$$(basename $$dir); \
+			rm -f $(BUILD_DIR)/$$example; \
+		fi \
+	done
+	@rm -f coverage-examples.txt
+	@echo "Example artifacts cleaned"
 
 # Default target
 .DEFAULT_GOAL := help

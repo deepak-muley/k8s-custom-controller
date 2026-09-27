@@ -1,0 +1,21 @@
+# KUTTL Test: Assert Test Deployments Are Ready
+# Wait for test deployments to be ready before verifying controller counting
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-1
+  namespace: kuttl-test-controller
+status:
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-2
+  namespace: kuttl-test-controller
+status:
+  readyReplicas: 1
+  replicas: 1

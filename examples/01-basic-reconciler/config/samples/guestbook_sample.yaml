@@ -1,0 +1,26 @@
+apiVersion: examples.k8s.io/v1alpha1
+kind: Guestbook
+metadata:
+  name: guestbook-sample
+  namespace: default
+spec:
+  message: "Welcome to the Kubernetes Guestbook!"
+  replicas: 3
+---
+apiVersion: examples.k8s.io/v1alpha1
+kind: Guestbook
+metadata:
+  name: guestbook-minimal
+  namespace: default
+spec:
+  message: "Minimal example"
+  # replicas defaults to 1
+---
+apiVersion: examples.k8s.io/v1alpha1
+kind: Guestbook
+metadata:
+  name: guestbook-large
+  namespace: default
+spec:
+  message: "Large deployment"
+  replicas: 10

@@ -1,5 +1,7 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+# Using latest Go version to match go.mod requirement (go 1.24.0)
+# If specific version needed, change to: FROM golang:1.24-alpine AS builder
+FROM golang:latest-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git make gcc musl-dev

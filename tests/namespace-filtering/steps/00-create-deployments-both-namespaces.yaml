@@ -1,0 +1,43 @@
+# Create deployments in both watched and ignored namespaces
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-in-watched
+  namespace: kuttl-test-watched
+  labels:
+    app: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-in-ignored
+  namespace: kuttl-test-ignored
+  labels:
+    app: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest

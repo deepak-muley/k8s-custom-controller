@@ -1,0 +1,46 @@
+# Test Resources Template for Integration Tests
+# Use envsubst to substitute variables:
+# envsubst < test-resources.yaml.template > test-resources.yaml
+# kubectl apply -f test-resources.yaml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${TEST_NAMESPACE:-test-controller}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${DEPLOYMENT_NAME:-test-deployment}
+  namespace: ${TEST_NAMESPACE:-test-controller}
+  labels:
+    app: test
+    env: ${TEST_ENV:-integration}
+spec:
+  replicas: ${REPLICAS:-1}
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: ${TEST_IMAGE:-nginx:latest}
+        ports:
+        - containerPort: ${CONTAINER_PORT:-80}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE_NAME:-test-service}
+  namespace: ${TEST_NAMESPACE:-test-controller}
+spec:
+  selector:
+    app: test
+  ports:
+  - port: ${SERVICE_PORT:-80}
+    targetPort: ${CONTAINER_PORT:-80}
+  type: ${SERVICE_TYPE:-ClusterIP}

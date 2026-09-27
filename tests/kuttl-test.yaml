@@ -1,0 +1,60 @@
+# KUTTL Test Configuration
+# Reference: https://github.com/kudobuilder/kuttl
+
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+metadata:
+  name: k8s-custom-controller-tests
+spec:
+  # Test timeout (default: 30 minutes)
+  timeOut: 1200
+  
+  # Parallel execution (default: 1, set to number of CPU cores for speed)
+  parallel: 1
+  
+  # Test directories to run (relative to this file)
+  testDirs:
+  - helm-deployment  # Tests Helm chart installation and functionality
+  - controller-functionality
+  - namespace-filtering
+  
+  # Commands to run before each test directory
+  # Note: KUTTL will automatically execute .sh files in test directories
+  # The 00-install-helm.sh script will be executed before assertions
+  
+  # Commands to run before tests start
+  preDelete:
+  - kind: Namespace
+    name: kuttl-test-*
+  
+  # Commands to run after all tests complete
+  postDelete:
+  - kind: Namespace
+    name: kuttl-test-*
+  
+  # Report format (json, xunit, default)
+  reportFormat: json
+  
+  # Report name
+  reportName: kuttl-test-report
+  
+  # Start kind cluster for testing (if no cluster available)
+  # If set to true, KUTTL will create a kind cluster
+  # If set to false, uses current kubeconfig context
+  startKind: true
+  
+  # Kind configuration (if startKind is true)
+  kindConfig: |
+    kind: Cluster
+    apiVersion: kind.x-k8s.io/v1alpha4
+    nodes:
+    - role: control-plane
+      kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+  
+  # Delete namespace on success
+  deleteNamespaceOnSuccess: true

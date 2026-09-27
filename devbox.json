@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetpack-io/devbox/main/.schema/devbox.schema.json",
   "packages": [
-    "go@1.21",
+    "go@1.24",
     "kubectl",
     "jq",
     "git",
@@ -10,7 +10,7 @@
     "python3@3.11"
   ],
   "env": {
-    "GO_VERSION": "1.21",
+    "GO_VERSION": "1.24",
     "HELM_VERSION": "3",
     "KUBESEC_VERSION": "2.11.0",
     "PLUTO_VERSION": "5.22.7",

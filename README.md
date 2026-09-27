@@ -27,7 +27,7 @@ make devbox-shell
 
 ### Option 2: Manual Installation
 
-- Go 1.21 or higher
+- Go 1.24 or higher (matches go.mod requirement)
 - Access to a Kubernetes cluster (local or remote)
 - Valid kubeconfig file (if running outside cluster) or proper RBAC (if running in-cluster)
 - **For Makefile targets:**
@@ -229,6 +229,19 @@ rules:
   verbs: ["list", "watch"]
 ```
 
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](./docs/) directory:
+
+- **[Testing Quick Reference](./docs/TESTING_QUICK_REFERENCE.md)** ⭐ **START HERE** - Quick decision guide for when to use each test type
+- **[E2E Testing Comparison](./docs/E2E_TESTING_COMPARISON.md)** ⭐ **NEW** - KUTTL vs Golang E2E vs Cluster API Framework
+- **[Testing Strategy](./docs/TESTING_STRATEGY.md)** - Complete testing strategy with all options explained
+- **[envtest Explained](./docs/ENVTEST_EXPLAINED.md)** - Detailed guide to envtest integration testing
+- **[KUTTL FAQ](./docs/KUTTL_FAQ.md)** - Frequently asked questions about KUTTL E2E testing
+- **[Setup Guide](./docs/SETUP.md)** - Project setup and installation instructions
+
+See [docs/README.md](./docs/README.md) for the complete documentation index.
+
 ## Development
 
 ### Project Structure
@@ -236,14 +249,35 @@ rules:
 ```
 k8s-custom-controller/
 ├── main.go                          # Entry point
+├── main_test.go                     # Main helper function tests
 ├── go.mod                           # Go module definition
 ├── internal/
 │   ├── config/
-│   │   └── config.go               # Configuration management
+│   │   ├── config.go               # Configuration management
+│   │   └── config_test.go          # Config tests (Ginkgo/Gomega)
 │   ├── controller/
-│   │   └── controller.go           # Main controller logic
+│   │   ├── controller.go           # Main controller logic
+│   │   ├── controller_test.go      # Controller unit tests (Ginkgo)
+│   │   ├── controller_envtest_test.go  # Integration tests (envtest)
+│   │   └── suite_test.go           # Test suite setup (envtest)
 │   └── counter/
-│       └── counter.go              # Resource counting logic
+│       ├── counter.go              # Resource counting logic
+│       └── counter_test.go         # Counter tests (Ginkgo/Gomega)
+├── tests/                           # E2E tests (KUTTL)
+│   ├── kuttl-test.yaml             # KUTTL test suite configuration
+│   ├── helm-deployment/            # Helm chart deployment tests
+│   ├── controller-functionality/   # Controller E2E tests
+│   └── namespace-filtering/        # Namespace filtering tests
+├── helm/                            # Helm chart
+│   └── k8s-custom-controller/
+├── docs/                            # Documentation
+│   ├── README.md                    # Documentation index
+│   ├── TESTING_QUICK_REFERENCE.md   # ⭐ Quick testing decision guide
+│   ├── TESTING_STRATEGY.md          # Complete testing strategy
+│   ├── ENVTEST_EXPLAINED.md         # envtest detailed guide
+│   ├── KUTTL_FAQ.md                 # KUTTL FAQ
+│   ├── KUTTL_USAGE.md               # KUTTL usage guide
+│   └── ...                          # Additional documentation
 └── README.md
 ```
 
@@ -285,7 +319,7 @@ make docker-push
 
 #### Testing
 ```bash
-# Run all tests
+# Run all tests (unit + integration with ginkgo/envtest)
 make test
 
 # Run tests with coverage report
@@ -293,6 +327,18 @@ make test-coverage
 
 # Run unit tests only
 make test-unit
+
+# Run integration tests with envtest
+make test-integration
+
+# Run E2E tests with KUTTL (requires cluster or kind) - Optional
+make kuttl-install      # Install KUTTL first
+make kuttl-test         # Run KUTTL tests (requires cluster)
+make kuttl-test-kind    # Run with kind cluster (auto-creates/destroys)
+make kuttl-test-helm    # Run Helm chart tests only
+make kuttl-clean        # Clean up test namespaces
+
+# See docs/TESTING_QUICK_REFERENCE.md for when to use each test type
 ```
 
 #### Code Quality
@@ -387,7 +433,7 @@ make devbox-install
 make devbox-shell
 
 # Inside devbox shell, most tools are available:
-# - Go 1.21, kubectl, jq, git, curl, bash, python3
+# - Go 1.24+, kubectl, jq, git, curl, bash, python3
 # - Helm (may need manual installation if package not available)
 # - Run any make commands as usual (build, test, ci, etc.)
 
@@ -556,6 +602,69 @@ These configurations ensure the deployment achieves a kubesec score of 90+ out o
 - Resource discovery relies on the Kubernetes API server's discovery endpoints
 - Very large numbers of resources may impact performance
 - Health probes require HTTP endpoints to be implemented in the controller
+
+## Controller-Runtime Examples
+
+This repository includes comprehensive examples demonstrating controller-runtime patterns alongside the client-go based main controller. These examples showcase modern Kubernetes controller development with CRDs, webhooks, finalizers, and more.
+
+### Quick Start with Examples
+
+```bash
+# List all available examples
+make examples-list
+
+# Generate CRDs for all examples
+make examples-generate
+
+# Build all example controllers
+make examples-build
+
+# Run a specific example
+make example-run EXAMPLE=01-basic-reconciler
+
+# Install CRDs to your cluster
+make examples-install-crds
+
+# Run tests for all examples
+make examples-test
+```
+
+### Available Examples
+
+The examples progress from basic concepts to production patterns:
+
+**Foundation:**
+- [01-basic-reconciler](examples/01-basic-reconciler) - Manager setup, Reconcile loop, CRD basics
+- [02-predicates-filtering](examples/02-predicates-filtering) - Event filtering, performance optimization
+- [03-finalizers-cleanup](examples/03-finalizers-cleanup) 🔥 - Cleanup logic, external resource management
+
+**Advanced Patterns:**
+- [04-owner-references](examples/04-owner-references) - Resource ownership, automatic garbage collection
+- [05-status-conditions](examples/05-status-conditions) 🔥 - Status management, condition patterns
+- [06-multi-resource-watch](examples/06-multi-resource-watch) - Watching multiple resource types
+
+**Production Features:**
+- [07-webhooks](examples/07-webhooks) 🔥 - Validation & mutating webhooks
+- [08-metrics-events](examples/08-metrics-events) - Prometheus metrics, event recording
+- [09-advanced-indexing](examples/09-advanced-indexing) - Cache optimization, fast lookups
+- [10-event-source-chaining](examples/10-event-source-chaining) ⭐ - External event sources
+- [11-rate-limiting-backoff](examples/11-rate-limiting-backoff) ⭐ - Rate limiting, retry strategies
+
+### Documentation
+
+- **[Examples Overview](examples/README.md)** - Complete guide to all examples
+- **[Controller-Runtime Guide](docs/CONTROLLER_RUNTIME_GUIDE.md)** - When to use controller-runtime vs client-go
+- **[CRD Development Guide](docs/CRD_DEVELOPMENT.md)** - Kubebuilder markers and CRD patterns
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Converting client-go to controller-runtime
+
+### Learning Path
+
+1. **Study the main controller** (client-go approach) - `main.go`, `internal/controller/`
+2. **Compare with example 01** (controller-runtime approach)
+3. **Work through examples 03, 05, 07** (priority features)
+4. **Explore advanced examples** as needed
+
+See [examples/README.md](examples/README.md) for detailed learning paths and [docs/CONTROLLER_RUNTIME_GUIDE.md](docs/CONTROLLER_RUNTIME_GUIDE.md) for choosing the right approach.
 
 ## License
 

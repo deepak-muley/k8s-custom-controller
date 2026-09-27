@@ -1,0 +1,19 @@
+# KUTTL Test: Helm Chart Deployment
+# This test verifies that the Helm chart deploys correctly
+#
+# Note: KUTTL will execute 00-install-helm.sh automatically if present
+# The script installs the Helm chart before assertions run
+#
+# To use this test:
+# 1. Package the Helm chart: make helm-package
+# 2. Build Docker image: make docker-build IMAGE_TAG=test
+# 3. Load image into kind: kind load docker-image k8s-custom-controller:test
+# 4. Run: kubectl kuttl test tests/helm-deployment/
+#
+# Or use the Makefile target:
+# make kuttl-test-kind  # Automatically handles all setup
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuttl-test-helm

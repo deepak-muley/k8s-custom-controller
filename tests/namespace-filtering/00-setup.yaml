@@ -1,0 +1,16 @@
+# KUTTL Test: Namespace Filtering
+# This test verifies that the controller only counts resources in the watched namespace
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuttl-test-watched
+  labels:
+    test: kuttl
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuttl-test-ignored
+  labels:
+    test: kuttl

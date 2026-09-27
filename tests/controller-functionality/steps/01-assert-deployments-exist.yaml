@@ -1,0 +1,29 @@
+# Step 2: Assert that deployments were created and are ready
+# KUTTL will wait for these resources to match the expected state
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-1
+  namespace: kuttl-test-controller
+status:
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-2
+  namespace: kuttl-test-controller
+status:
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-3
+  namespace: kuttl-test-controller
+status:
+  readyReplicas: 1
+  replicas: 1

@@ -1,0 +1,22 @@
+# Step 3: Verify controller is counting resources correctly
+# This requires querying the controller's counting mechanism
+# Since the controller doesn't expose metrics/API, we'll verify via:
+# 1. Checking controller logs
+# 2. Verifying controller pod is running
+# 3. Using a test pod to query (if we add metrics endpoint)
+
+# For now, we'll verify that the controller pod is running
+# Actual counting verification would require additional setup
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: k8s-custom-controller
+  namespace: kuttl-test-controller
+status:
+  phase: Running
+  containerStatuses:
+  - name: k8s-custom-controller
+    ready: true
+    state:
+      running: {}

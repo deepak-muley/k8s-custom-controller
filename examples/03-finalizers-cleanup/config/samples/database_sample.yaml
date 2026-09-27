@@ -1,0 +1,29 @@
+apiVersion: finalizers.examples.k8s.io/v1alpha1
+kind: Database
+metadata:
+  name: database-sample
+  namespace: default
+spec:
+  databaseName: "myapp-prod"
+  storageSizeMB: 5000
+  backupEnabled: true
+---
+apiVersion: finalizers.examples.k8s.io/v1alpha1
+kind: Database
+metadata:
+  name: database-minimal
+  namespace: default
+spec:
+  databaseName: "test-db"
+  # storageSizeMB defaults to 1000
+  # backupEnabled defaults to false
+---
+apiVersion: finalizers.examples.k8s.io/v1alpha1
+kind: Database
+metadata:
+  name: database-large
+  namespace: default
+spec:
+  databaseName: "analytics-warehouse"
+  storageSizeMB: 10000
+  backupEnabled: true

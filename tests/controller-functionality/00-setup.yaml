@@ -1,0 +1,14 @@
+# KUTTL Test: Controller Functionality
+# This test verifies that the controller correctly counts resources
+
+# Setup: Create test namespace and deploy controller via Helm
+# Note: In practice, you would install Helm chart via script,
+# but for KUTTL, we can test with manually created resources or
+# use KUTTL's ability to run scripts
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuttl-test-controller
+  labels:
+    test: kuttl

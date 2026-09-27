@@ -1,0 +1,52 @@
+# KUTTL Test: Verify Controller Functionality After Helm Install
+# This step verifies that the controller works after Helm chart installation
+
+---
+# Create test resources that the controller should count
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-1
+  namespace: kuttl-test-controller
+  labels:
+    app: test
+    test: kuttl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-2
+  namespace: kuttl-test-controller
+  labels:
+    app: test
+    test: kuttl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80

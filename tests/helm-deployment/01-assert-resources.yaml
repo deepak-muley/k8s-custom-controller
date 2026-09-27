@@ -1,0 +1,65 @@
+# KUTTL Test: Assert Helm Chart Resources
+# This file asserts that all resources created by the Helm chart exist and are in correct state
+#
+# The Helm chart should have been installed by 00-install-helm.sh script
+# KUTTL will wait for these resources to match the expected state
+
+---
+# Assert Deployment exists and is ready
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-custom-controller
+  namespace: kuttl-test-helm
+spec:
+  replicas: 1
+status:
+  readyReplicas: 1
+  replicas: 1
+  conditions:
+  - type: Available
+    status: "True"
+  - type: Progressing
+    status: "True"
+
+---
+# Assert ServiceAccount exists
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-custom-controller
+  namespace: kuttl-test-helm
+
+---
+# Assert ClusterRole exists
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-custom-controller
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["list", "watch", "get"]
+
+---
+# Assert ClusterRoleBinding exists
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-custom-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-custom-controller
+subjects:
+- kind: ServiceAccount
+  name: k8s-custom-controller
+  namespace: kuttl-test-helm
+
+---
+# Assert ConfigMap exists (if configured in Helm chart)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-custom-controller-config
+  namespace: kuttl-test-helm

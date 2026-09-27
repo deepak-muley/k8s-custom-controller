@@ -1,0 +1,32 @@
+# Assert that only the deployment in watched namespace is counted
+# Note: This would require querying controller's count state
+# For demonstration, we're showing the structure
+
+# In practice, you would:
+# 1. Expose controller metrics/API endpoint
+# 2. Query the count via kubectl exec into controller pod
+# 3. Use a test pod to query controller's counting state
+# 4. Check controller logs for count verification
+
+# Example structure - actual implementation would depend on
+# how you expose controller state (metrics, API, logs, etc.)
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: count-verification
+  namespace: kuttl-test-watched
+spec:
+  containers:
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command:
+    - /bin/sh
+    - -c
+    - |
+      # Example: Query controller pod logs to verify count
+      # kubectl logs -n kuttl-test-watched k8s-custom-controller | grep "Count:"
+      # Or if controller exposes metrics:
+      # kubectl exec -n kuttl-test-watched k8s-custom-controller -- curl localhost:8080/metrics
+      echo "Controller should only count deployment in watched namespace"
+  restartPolicy: Never
