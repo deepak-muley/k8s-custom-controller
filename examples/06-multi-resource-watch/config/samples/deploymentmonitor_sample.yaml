@@ -1,0 +1,27 @@
+apiVersion: watches.examples.k8s.io/v1alpha1
+kind: DeploymentMonitor
+metadata:
+  name: nginx-monitor
+  namespace: default
+spec:
+  deploymentName: nginx-deployment
+  namespace: default
+---
+apiVersion: watches.examples.k8s.io/v1alpha1
+kind: DeploymentMonitor
+metadata:
+  name: app-monitor
+  namespace: default
+spec:
+  deploymentName: my-app
+  namespace: default
+---
+# Example: Monitor a deployment in a different namespace
+apiVersion: watches.examples.k8s.io/v1alpha1
+kind: DeploymentMonitor
+metadata:
+  name: cross-namespace-monitor
+  namespace: default
+spec:
+  deploymentName: backend-service
+  namespace: production

@@ -1,0 +1,25 @@
+apiVersion: predicates.examples.k8s.io/v1alpha1
+kind: FilteredConfig
+metadata:
+  name: watched-config
+  namespace: default
+  labels:
+    watch: "true"
+    reconcile-on-delete: "true"
+spec:
+  data:
+    key1: value1
+    key2: value2
+  watchLabels:
+    environment: production
+---
+apiVersion: predicates.examples.k8s.io/v1alpha1
+kind: FilteredConfig
+metadata:
+  name: ignored-config
+  namespace: default
+  labels:
+    watch: "false"
+spec:
+  data:
+    key3: value3

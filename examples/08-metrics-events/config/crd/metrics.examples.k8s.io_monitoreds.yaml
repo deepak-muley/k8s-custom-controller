@@ -1,0 +1,114 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: monitoreds.metrics.examples.k8s.io
+spec:
+  group: metrics.examples.k8s.io
+  names:
+    kind: Monitored
+    listKind: MonitoredList
+    plural: monitoreds
+    shortNames:
+    - mon
+    singular: monitored
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.target
+      name: Target
+      type: string
+    - jsonPath: .spec.threshold
+      name: Threshold
+      type: integer
+    - jsonPath: .status.state
+      name: State
+      type: string
+    - jsonPath: .status.reconcileCount
+      name: Reconciles
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Monitored is the Schema for the monitoreds API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MonitoredSpec defines the desired state of Monitored
+            properties:
+              interval:
+                default: 60
+                description: Interval defines the monitoring interval in seconds
+                format: int32
+                maximum: 3600
+                minimum: 1
+                type: integer
+              target:
+                description: Target is the resource to monitor
+                minLength: 1
+                type: string
+              threshold:
+                default: 80
+                description: Threshold defines the alert threshold
+                format: int32
+                maximum: 100
+                minimum: 0
+                type: integer
+            required:
+            - target
+            type: object
+          status:
+            description: MonitoredStatus defines the observed state of Monitored
+            properties:
+              currentValue:
+                description: CurrentValue is the current monitored value
+                format: int32
+                type: integer
+              lastCheckTime:
+                description: LastCheckTime is the timestamp of the last health check
+                format: date-time
+                type: string
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed Monitored
+                format: int64
+                type: integer
+              reconcileCount:
+                description: ReconcileCount tracks the number of reconciliations
+                format: int64
+                type: integer
+              state:
+                description: State represents the current state of monitoring
+                enum:
+                - Monitoring
+                - Alerting
+                - Healthy
+                - Failed
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

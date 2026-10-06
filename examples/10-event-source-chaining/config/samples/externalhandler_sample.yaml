@@ -1,0 +1,44 @@
+apiVersion: eventsource.examples.k8s.io/v1alpha1
+kind: ExternalHandler
+metadata:
+  name: externalhandler-sample
+  namespace: default
+spec:
+  # Filter events by type (empty means process all)
+  eventFilter: "webhook"
+
+  # Maximum number of events to process (0 means unlimited)
+  maxEvents: 50
+
+  # Processing mode: sequential or parallel
+  processingMode: sequential
+---
+apiVersion: eventsource.examples.k8s.io/v1alpha1
+kind: ExternalHandler
+metadata:
+  name: externalhandler-unlimited
+  namespace: default
+spec:
+  # Process all event types
+  eventFilter: ""
+
+  # Unlimited events
+  maxEvents: 0
+
+  # Parallel processing
+  processingMode: parallel
+---
+apiVersion: eventsource.examples.k8s.io/v1alpha1
+kind: ExternalHandler
+metadata:
+  name: externalhandler-alerts
+  namespace: default
+spec:
+  # Only process alert events
+  eventFilter: "alert"
+
+  # Process up to 10 alerts
+  maxEvents: 10
+
+  # Sequential processing for alerts
+  processingMode: sequential

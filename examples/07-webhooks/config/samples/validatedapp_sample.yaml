@@ -1,0 +1,79 @@
+apiVersion: webhooks.examples.k8s.io/v1alpha1
+kind: ValidatedApp
+metadata:
+  name: nginx-app
+  namespace: default
+spec:
+  # Image with explicit tag (required by webhook validation)
+  image: docker.io/library/nginx:1.21
+
+  # Replicas will default to 1 if not specified (webhook defaulting)
+  replicas: 2
+
+  # Port will default to 8080 if not specified (webhook defaulting)
+  port: 80
+
+  # Environment variables (webhook validates no sensitive data)
+  env:
+    APP_ENV: "production"
+    LOG_LEVEL: "info"
+
+  # Privileged mode disabled (webhook validation)
+  allowPrivileged: false
+
+---
+apiVersion: webhooks.examples.k8s.io/v1alpha1
+kind: ValidatedApp
+metadata:
+  name: simple-app
+  namespace: default
+spec:
+  # Webhook will add docker.io/library/ prefix if missing
+  image: nginx:1.21
+  # Replicas will default to 1 (webhook defaulting)
+  # Port will default to 8080 (webhook defaulting)
+
+---
+apiVersion: webhooks.examples.k8s.io/v1alpha1
+kind: ValidatedApp
+metadata:
+  name: privileged-app
+  namespace: default
+  annotations:
+    # Required annotation for privileged mode
+    security.k8s.io/allow-privileged: "true"
+spec:
+  image: gcr.io/google-containers/busybox:1.27
+  replicas: 1  # Only 1 replica allowed for privileged containers
+  allowPrivileged: true
+
+---
+# This example will be rejected by webhook validation
+# Uncomment to test validation errors
+#
+# apiVersion: webhooks.examples.k8s.io/v1alpha1
+# kind: ValidatedApp
+# metadata:
+#   name: invalid-app
+#   namespace: default
+# spec:
+#   # Will be rejected - image tag 'latest' not allowed
+#   image: nginx:latest
+#   replicas: 2
+#   env:
+#     # Will be rejected - password in env var
+#     DATABASE_PASSWORD: "secret123"
+
+---
+# This example will be rejected by webhook validation
+# Uncomment to test validation errors
+#
+# apiVersion: webhooks.examples.k8s.io/v1alpha1
+# kind: ValidatedApp
+# metadata:
+#   name: unknown-registry
+#   namespace: default
+# spec:
+#   # Will be rejected - registry not in allowed list
+#   image: private-registry.company.com/app:1.0
+#   replicas: 1

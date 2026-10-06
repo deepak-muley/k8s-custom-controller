@@ -1,0 +1,150 @@
+---
+# Sample IndexedResource with category "database"
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: database-mysql
+  namespace: default
+spec:
+  category: database
+  owner: team-backend
+  priority: 9
+  tags:
+    - mysql
+    - relational
+  data: "MySQL database configuration"
+---
+# Another database resource in the same category
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: database-postgres
+  namespace: default
+spec:
+  category: database
+  owner: team-backend
+  priority: 10
+  tags:
+    - postgres
+    - relational
+  data: "PostgreSQL database configuration"
+---
+# Cache resource in different category
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: cache-redis
+  namespace: default
+spec:
+  category: cache
+  owner: team-backend
+  priority: 8
+  tags:
+    - redis
+    - in-memory
+  data: "Redis cache configuration"
+---
+# Another cache resource
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: cache-memcached
+  namespace: default
+spec:
+  category: cache
+  owner: team-infrastructure
+  priority: 7
+  tags:
+    - memcached
+    - in-memory
+  data: "Memcached cache configuration"
+---
+# Message queue resource
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: queue-rabbitmq
+  namespace: default
+spec:
+  category: messaging
+  owner: team-backend
+  priority: 8
+  tags:
+    - rabbitmq
+    - amqp
+  data: "RabbitMQ message queue configuration"
+---
+# Another message queue
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: queue-kafka
+  namespace: default
+spec:
+  category: messaging
+  owner: team-data
+  priority: 9
+  tags:
+    - kafka
+    - streaming
+  data: "Kafka message streaming configuration"
+---
+# Storage resource
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: storage-s3
+  namespace: default
+spec:
+  category: storage
+  owner: team-infrastructure
+  priority: 10
+  tags:
+    - s3
+    - object-storage
+  data: "S3 object storage configuration"
+---
+# Monitoring resource
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: monitoring-prometheus
+  namespace: default
+spec:
+  category: monitoring
+  owner: team-sre
+  priority: 9
+  tags:
+    - prometheus
+    - metrics
+  data: "Prometheus monitoring configuration"
+---
+# Logging resource owned by same team as monitoring
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: logging-elasticsearch
+  namespace: default
+spec:
+  category: logging
+  owner: team-sre
+  priority: 8
+  tags:
+    - elasticsearch
+    - logs
+  data: "Elasticsearch logging configuration"
+---
+# API Gateway resource
+apiVersion: indexing.examples.k8s.io/v1alpha1
+kind: IndexedResource
+metadata:
+  name: gateway-nginx
+  namespace: default
+spec:
+  category: gateway
+  owner: team-infrastructure
+  priority: 10
+  tags:
+    - nginx
+    - ingress
+  data: "NGINX API Gateway configuration"

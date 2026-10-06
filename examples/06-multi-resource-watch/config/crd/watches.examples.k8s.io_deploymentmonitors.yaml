@@ -1,0 +1,147 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: deploymentmonitors.watches.examples.k8s.io
+spec:
+  group: watches.examples.k8s.io
+  names:
+    kind: DeploymentMonitor
+    listKind: DeploymentMonitorList
+    plural: deploymentmonitors
+    shortNames:
+    - dm
+    singular: deploymentmonitor
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.deploymentName
+      name: Deployment
+      type: string
+    - jsonPath: .status.deploymentFound
+      name: Found
+      type: boolean
+    - jsonPath: .status.desiredReplicas
+      name: Desired
+      type: integer
+    - jsonPath: .status.availableReplicas
+      name: Available
+      type: integer
+    - jsonPath: .status.totalReplicaSets
+      name: ReplicaSets
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: DeploymentMonitor is the Schema for the deploymentmonitors API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DeploymentMonitorSpec defines the desired state of DeploymentMonitor
+            properties:
+              deploymentName:
+                description: DeploymentName is the name of the Deployment to monitor
+                minLength: 1
+                type: string
+              namespace:
+                description: Namespace is the namespace of the Deployment to monitor
+                minLength: 1
+                type: string
+            required:
+            - deploymentName
+            - namespace
+            type: object
+          status:
+            description: DeploymentMonitorStatus defines the observed state of DeploymentMonitor
+            properties:
+              availableReplicas:
+                description: AvailableReplicas is the number of available replicas
+                format: int32
+                type: integer
+              deploymentFound:
+                description: DeploymentFound indicates if the deployment was found
+                type: boolean
+              desiredReplicas:
+                description: DesiredReplicas is the desired number of replicas from
+                  the Deployment
+                format: int32
+                type: integer
+              lastUpdated:
+                description: LastUpdated is the timestamp when the status was last
+                  updated
+                format: date-time
+                type: string
+              message:
+                description: Message provides additional information about the current
+                  state
+                type: string
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed DeploymentMonitor
+                format: int64
+                type: integer
+              readyReplicas:
+                description: ReadyReplicas is the number of ready replicas
+                format: int32
+                type: integer
+              replicaSets:
+                description: ReplicaSets contains information about the ReplicaSets
+                  owned by the Deployment
+                items:
+                  description: ReplicaSetInfo contains information about a ReplicaSet
+                  properties:
+                    availableReplicas:
+                      description: AvailableReplicas is the number of available replicas
+                      format: int32
+                      type: integer
+                    name:
+                      description: Name of the ReplicaSet
+                      type: string
+                    readyReplicas:
+                      description: ReadyReplicas is the number of ready replicas
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Replicas is the desired number of replicas
+                      format: int32
+                      type: integer
+                    revision:
+                      description: Revision is the deployment revision
+                      type: string
+                  required:
+                  - availableReplicas
+                  - name
+                  - readyReplicas
+                  - replicas
+                  type: object
+                type: array
+              totalReplicaSets:
+                description: TotalReplicaSets is the total number of ReplicaSets
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,124 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.22.0
+  name: ratelimiteds.ratelimit.examples.k8s.io
+spec:
+  group: ratelimit.examples.k8s.io
+  names:
+    kind: RateLimited
+    listKind: RateLimitedList
+    plural: ratelimiteds
+    shortNames:
+    - rl
+    singular: ratelimited
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.processingCount
+      name: ProcessingCount
+      type: integer
+    - jsonPath: .status.failureCount
+      name: FailureCount
+      type: integer
+    - jsonPath: .status.backoffDuration
+      name: BackoffDuration
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RateLimited is the Schema for the ratelimiteds API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RateLimitedSpec defines the desired state of RateLimited
+            properties:
+              failureRatePercent:
+                description: |-
+                  FailureRatePercent is the probability of failure as a percentage (0 to 100)
+                  Used to simulate failures and trigger rate limiting
+                maximum: 100
+                minimum: 0
+                type: integer
+              maxRetries:
+                description: MaxRetries is the maximum number of retries before giving
+                  up
+                minimum: 0
+                type: integer
+              processingTime:
+                description: ProcessingTime is the time in seconds to simulate processing
+                maximum: 300
+                minimum: 0
+                type: integer
+              requeueAfterSeconds:
+                description: RequeueAfterSeconds is the time to wait before requeuing
+                minimum: 0
+                type: integer
+            type: object
+          status:
+            description: RateLimitedStatus defines the observed state of RateLimited
+            properties:
+              backoffDuration:
+                description: BackoffDuration is the current backoff duration in seconds
+                type: integer
+              failureCount:
+                description: FailureCount is the number of times processing has failed
+                type: integer
+              lastFailureReason:
+                description: LastFailureReason is the reason for the last failure
+                type: string
+              lastFailureTime:
+                description: LastFailureTime is the last time processing failed
+                format: date-time
+                type: string
+              lastProcessedTime:
+                description: LastProcessedTime is the last time the resource was processed
+                format: date-time
+                type: string
+              message:
+                description: Message provides additional information about the current
+                  state
+                type: string
+              phase:
+                description: Phase represents the current phase of processing
+                enum:
+                - Pending
+                - Processing
+                - Completed
+                - Failed
+                - RateLimited
+                type: string
+              processingCount:
+                description: ProcessingCount is the number of times this resource
+                  has been processed
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

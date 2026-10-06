@@ -1,0 +1,29 @@
+apiVersion: status.examples.k8s.io/v1alpha1
+kind: ManagedService
+metadata:
+  name: webapp-service
+  namespace: default
+spec:
+  serviceType: web
+  version: v1.0.0
+  replicas: 3
+---
+apiVersion: status.examples.k8s.io/v1alpha1
+kind: ManagedService
+metadata:
+  name: database-service
+  namespace: default
+spec:
+  serviceType: database
+  version: v2.1.0
+  replicas: 5
+---
+apiVersion: status.examples.k8s.io/v1alpha1
+kind: ManagedService
+metadata:
+  name: cache-service
+  namespace: default
+spec:
+  serviceType: cache
+  version: v1.5.3
+  replicas: 2

@@ -1,0 +1,103 @@
+---
+# Example 1: Basic rate limited resource with low failure rate
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-low-failure
+  namespace: default
+spec:
+  processingTime: 2
+  failureRatePercent: 30  # 30% chance of failure
+  maxRetries: 5
+  requeueAfterSeconds: 0  # Don't requeue on success
+
+---
+# Example 2: High failure rate to demonstrate exponential backoff
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-high-failure
+  namespace: default
+spec:
+  processingTime: 1
+  failureRatePercent: 70  # 70% chance of failure
+  maxRetries: 10
+  requeueAfterSeconds: 0
+
+---
+# Example 3: Continuous reprocessing with controlled interval
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-continuous
+  namespace: default
+spec:
+  processingTime: 3
+  failureRatePercent: 0  # No failures, just continuous processing
+  maxRetries: 5
+  requeueAfterSeconds: 30  # Reprocess every 30 seconds
+
+---
+# Example 4: Fast processing with minimal failures
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-fast
+  namespace: default
+spec:
+  processingTime: 0  # Immediate processing
+  failureRatePercent: 10  # 10% chance of failure
+  maxRetries: 3
+  requeueAfterSeconds: 0
+
+---
+# Example 5: Slow processing with moderate failures
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-slow
+  namespace: default
+spec:
+  processingTime: 10  # 10 second processing time
+  failureRatePercent: 50  # 50% chance of failure
+  maxRetries: 8
+  requeueAfterSeconds: 0
+
+---
+# Example 6: No failures to test successful path
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-success
+  namespace: default
+spec:
+  processingTime: 2
+  failureRatePercent: 0  # No failures
+  maxRetries: 5
+  requeueAfterSeconds: 0
+
+---
+# Example 7: Maximum retries test
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-max-retries
+  namespace: default
+spec:
+  processingTime: 1
+  failureRatePercent: 100  # Always fail
+  maxRetries: 3     # Will give up after 3 retries
+  requeueAfterSeconds: 0
+
+---
+# Example 8: Periodic processing with requeue
+apiVersion: ratelimit.examples.k8s.io/v1alpha1
+kind: RateLimited
+metadata:
+  name: ratelimited-sample-periodic
+  namespace: default
+spec:
+  processingTime: 5
+  failureRatePercent: 20  # 20% chance of failure
+  maxRetries: 5
+  requeueAfterSeconds: 60  # Reprocess every minute
